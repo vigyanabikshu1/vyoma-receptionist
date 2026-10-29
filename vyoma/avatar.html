@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vyoma</title>
+<style>
+  * { box-sizing:border-box; margin:0; }
+  html,body { height:100%; }
+  body { background:radial-gradient(120% 120% at 50% 30%, #1b3a5c 0%, #12263f 55%, #0b1829 100%);
+         color:#e6eefb; font:16px/1.5 system-ui,"Segoe UI",sans-serif;
+         display:flex; flex-direction:column; align-items:center;
+         justify-content:center; overflow:hidden; user-select:none; }
+  header { position:fixed; top:0; left:0; right:0; padding:16px 22px;
+           display:flex; justify-content:space-between; align-items:baseline; }
+  header .who { font-size:26px; font-weight:700; letter-spacing:.5px; }
+  header .who span { color:#ffd166; }
+  header .org { font-size:14px; color:#93a9c4; }
+  #gear { position:fixed; bottom:10px; right:14px; font-size:15px;
+          color:#31517a; text-decoration:none; }
+  #gear:hover { color:#7da4d4; }
+
+  /* stop / resume — kiosk controls (touch targets, so not as faint as #gear) */
+  #controls { position:fixed; bottom:10px; left:14px; display:flex; gap:10px;
+              opacity:.75; transition:opacity .3s; }
+  #controls:hover { opacity:1; }
+  #controls button { font:inherit; font-size:15px; padding:9px 18px;
+              border-radius:9px; cursor:pointer; color:#cfe0f5;
+              background:rgba(16,35,60,.8); border:1px solid #31517a; }
+  #controls button:hover:not(:disabled) { background:#1b3a5c; color:#fff; }
+  #controls button:disabled { opacity:.32; cursor:default; }
+  #btn-stop:hover:not(:disabled)   { border-color:#ef4444; color:#fca5a5; }
+  #btn-resume:hover:not(:disabled) { border-color:#22c55e; color:#86efac; }
+
+  #stage { display:flex; flex-direction:column; align-items:center; gap:8px; }
+  #face { width:min(56vmin, 500px); height:auto; }
+  .float { animation:float 5s ease-in-out infinite; }
+  @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+
+  /* status chip under the face */
+  #status { display:flex; align-items:center; gap:9px; font-size:17px;
+            color:#93a9c4; min-height:28px; transition:color .3s; }
+  #status .pulse { width:12px; height:12px; border-radius:50%;
+                   background:#3b5f8a; transition:background .3s; }
+  #status.listening { color:#fca5a5; }
+  #status.listening .pulse { background:#ef4444;
+                             animation:pulse 1s ease-in-out infinite; }
+  #status.paused { color:#fbbf24; }
+  #status.paused .pulse { background:#f59e0b; }
+  #status.speaking { color:#86efac; }
+  #status.speaking .pulse { background:#22c55e;
+                            animation:pulse .8s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1; transform:scale(1)}
+                     50%{opacity:.35; transform:scale(.7)} }
+
+  /* captions */
+  /* sits just above the Stop/Resume row so long captions never run under it */
+  #caption { position:fixed; bottom:max(3.5vh, 62px); left:50%;
+             transform:translateX(-50%); max-width:80vw; text-align:center; }
+  #say { font-size:clamp(20px, 3.4vmin, 34px); font-weight:600;
+         color:#f3f7fd; text-shadow:0 2px 14px rgba(0,0,0,.55);
+         opacity:0; transition:opacity .35s; }
+  #say.show { opacity:1; }
+  #heard { font-size:clamp(14px, 2.2vmin, 20px); color:#7dd3fc; margin-top:8px;
+           opacity:0; transition:opacity .35s; font-style:italic; }
+  #heard.show { opacity:.95; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="who" id="who">VYOMA <span>●</span></div>
+  <div class="org" id="org"></div>
+</header>
+
+<div id="stage">
+  <svg id="face" class="float" viewBox="0 0 400 420" aria-label="Vyoma's face">
+    <defs>
+      <radialGradient id="skin2" cx="50%" cy="38%" r="75%">
+        <stop offset="0%"  stop-color="#41709f"/>
+        <stop offset="72%" stop-color="#2e5384"/>
+        <stop offset="100%" stop-color="#25436b"/>
+      </radialGradient>
+      <clipPath id="mouthclip"><path id="mouthclip-path" d=""/></clipPath>
+    </defs>
+
+    <!-- listening ring (mic level) -->
+    <circle id="ring" cx="200" cy="205" r="186" fill="none"
+            stroke="#ef4444" stroke-width="3" opacity="0"/>
+
+    <!-- antenna -->
+    <line x1="200" y1="38" x2="200" y2="8" stroke="#4d7bb0" stroke-width="6"
+          stroke-linecap="round"/>
+    <circle id="antenna" cx="200" cy="10" r="9" fill="#ffd166"/>
+
+    <!-- head -->
+    <rect x="30" y="38" rx="86" ry="86" width="340" height="345"
+          fill="url(#skin2)" stroke="#4d7bb0" stroke-width="4"/>
+    <!-- face plate -->
+    <rect x="58" y="70" rx="64" ry="64" width="284" height="285"
+          fill="#10233c" stroke="#39608f" stroke-width="2.5"/>
+
+    <!-- ears -->
+    <rect x="12" y="165" rx="10" width="20" height="88" fill="#4d7bb0"/>
+    <rect x="368" y="165" rx="10" width="20" height="88" fill="#4d7bb0"/>
+
+    <!-- eyes -->
+    <g id="eyeL" transform="translate(133,175)">
+      <ellipse class="eyeball" rx="34" ry="40" fill="#8fd3ff"/>
+      <circle class="pupil" r="13" cy="4" fill="#0b1829"/>
+      <circle r="5" cx="-6" cy="-8" fill="#fff" opacity=".9"/>
+    </g>
+    <g id="eyeR" transform="translate(267,175)">
+      <ellipse class="eyeball" rx="34" ry="40" fill="#8fd3ff"/>
+      <circle class="pupil" r="13" cy="4" fill="#0b1829"/>
+      <circle r="5" cx="-6" cy="-8" fill="#fff" opacity=".9"/>
+    </g>
+    <!-- brows -->
+    <path id="browL" d="M103,124 Q133,110 163,124" stroke="#8fd3ff"
+          stroke-width="7" fill="none" stroke-linecap="round"/>
+    <path id="browR" d="M237,124 Q267,110 297,124" stroke="#8fd3ff"
+          stroke-width="7" fill="none" stroke-linecap="round"/>
+
+    <!-- cheeks -->
+    <ellipse cx="105" cy="255" rx="17" ry="10" fill="#ff8fa3" opacity=".28"/>
+    <ellipse cx="295" cy="255" rx="17" ry="10" fill="#ff8fa3" opacity=".28"/>
+
+    <!-- mouth -->
+    <g id="mouthg" transform="translate(200,300)">
+      <path id="mouth" d="" fill="#081422" stroke="#8fd3ff" stroke-width="5"
+            stroke-linejoin="round"/>
+      <g clip-path="url(#mouthclip)">
+        <rect id="teeth" x="-60" y="-40" width="120" height="14"
+              fill="#e8f4ff" visibility="hidden"/>
+        <ellipse id="tongue" cx="0" cy="26" rx="26" ry="16" fill="#e26a7c"
+                 visibility="hidden"/>
+      </g>
+    </g>
+  </svg>
+
+  <div id="status"><span class="pulse"></span><span id="status-text">·</span></div>
+</div>
+
+<div id="caption">
+  <div id="say"></div>
+  <div id="heard"></div>
+</div>
+
+<div id="controls">
+  <button id="btn-stop" onclick="control('stop')"
+          title="Stop the receptionist — it stops greeting and listening">■ Stop</button>
+  <button id="btn-resume" onclick="control('start')"
+          title="Start the receptionist again">▶ Resume</button>
+</div>
+
+<a id="gear" href="/" title="control panel">⚙ control panel</a>
+
+<script>
+const $ = id => document.getElementById(id);
+
+/* ---------------- identity ---------------- */
+(async () => {
+  try {
+    const s = await (await fetch("/api/status")).json();
+    $("who").innerHTML = (s.assistant || "VYOMA").toUpperCase() + " <span>●</span>";
+    $("org").textContent = s.organisation || "";
+    document.title = s.assistant || "Vyoma";
+  } catch (e) {}
+})();
+
+/* ---------------- mouth geometry ----------------
+   The mouth is one lens-shaped path whose half-width / opening height
+   are eased toward per-viseme targets every frame; the audio envelope
+   scales the opening so lips shut in the natural gaps. */
+const SHAPES = {           //  w  = half width, h = max opening,
+  rest:{w:36, h:5,  teeth:0, tongue:0},   //  teeth/tongue toggles
+  AI:  {w:40, h:34, teeth:0, tongue:0},
+  E:   {w:48, h:16, teeth:1, tongue:0},
+  O:   {w:21, h:30, teeth:0, tongue:0},
+  U:   {w:14, h:18, teeth:0, tongue:0},
+  MBP: {w:31, h:2.5,teeth:0, tongue:0},
+  FV:  {w:37, h:9,  teeth:1, tongue:0},
+  L:   {w:30, h:26, teeth:0, tongue:1},
+  TS:  {w:39, h:11, teeth:1, tongue:0},
+};
+let cur = {w:36, h:5, teeth:0, tongue:0};
+function lensPath(w, h) {
+  return `M ${-w},0 Q 0,${-h} ${w},0 Q 0,${h} ${-w},0 Z`;
+}
+function renderMouth(target, open) {
+  const t = SHAPES[target] || SHAPES.rest;
+  // closed shapes ignore the envelope; open ones scale with it
+  const h = t.h <= 6 ? t.h : Math.max(3, t.h * (0.25 + 0.75 * open));
+  cur.w += (t.w - cur.w) * 0.45;
+  cur.h += (h  - cur.h) * 0.55;
+  const d = lensPath(cur.w, cur.h);
+  $("mouth").setAttribute("d", d);
+  $("mouthclip-path").setAttribute("d", d);
+  $("teeth").setAttribute("y", -cur.h);
+  $("teeth").setAttribute("visibility", t.teeth && cur.h > 7 ? "visible" : "hidden");
+  $("tongue").setAttribute("cy", cur.h * 0.7);
+  $("tongue").setAttribute("visibility", t.tongue && cur.h > 9 ? "visible" : "hidden");
+}
+
+/* ---------------- eyes: blinking + moods ---------------- */
+const EYE_X = {eyeL: 133, eyeR: 267};
+function setEyes(scaleY) {
+  // scale the whole group so the pupil and highlight blink shut too
+  for (const [id, x] of Object.entries(EYE_X))
+    $(id).setAttribute("transform",
+                       `translate(${x},175) scale(1,${scaleY})`);
+}
+let blinkT = Date.now() + 1500 + Math.random() * 3000;
+function maybeBlink(now) {
+  if (now > blinkT) {                       // schedule the next blink
+    blinkT = now + 2200 + Math.random() * 3800;
+    setEyes(0.08);
+    setTimeout(() => setEyes(mood === "listening" ? 1.12 : 1), 130);
+  }
+}
+function setBrows(up) {
+  const y1 = up ? 114 : 124, y2 = up ? 98 : 110;
+  $("browL").setAttribute("d", `M103,${y1} Q133,${y2} 163,${y1}`);
+  $("browR").setAttribute("d", `M237,${y1} Q267,${y2} 297,${y1}`);
+}
+
+/* ---------------- state from the receptionist ---------------- */
+let speak = null;     // latest /api/speak payload
+let skew = 0;         // client clock − server clock (seconds)
+let micFresh = false, micActive = false, micLevel = 0;
+let mood = "idle";
+
+async function pollSpeak() {
+  try {
+    const d = await (await fetch("/api/speak")).json();
+    if (typeof d.now === "number")
+      skew = skew * 0.7 + (Date.now() / 1000 - d.now) * 0.3;
+    speak = d;
+  } catch (e) { /* server restarting */ }
+}
+async function pollMic() {
+  try {
+    const d = await (await fetch("/api/mic")).json();
+    micFresh = (Date.now() / 1000 - skew - (d.ts || 0)) < 1.2;
+    micActive = micFresh && d.active;
+    const l = d.levels || [];
+    micLevel = l.length ? l[l.length - 1] : 0;
+  } catch (e) { micFresh = false; }
+}
+setInterval(pollSpeak, 120); pollSpeak();
+setInterval(pollMic, 150); pollMic();
+
+/* ---------------- stop / resume ----------------
+   Drives the same endpoints as the dashboard's Start/Stop buttons, so an
+   operator standing at the kiosk can halt Vyoma without walking to a
+   laptop. Resume restarts it in the mode it was last running in. */
+let recepRunning = true;        // optimistic until the first poll answers
+let recepMode = "camera";       // the kiosk's usual mode
+let ctlBusy = false;
+
+function paintControls() {
+  $("btn-stop").disabled   = ctlBusy || !recepRunning;
+  $("btn-resume").disabled = ctlBusy || recepRunning;
+}
+async function pollState() {
+  try {
+    const d = await (await fetch("/api/receptionist/state")).json();
+    recepRunning = !!d.running;
+    if (d.mode) recepMode = d.mode;
+  } catch (e) { /* server restarting — keep the last known state */ }
+  paintControls();
+}
+async function control(action) {
+  ctlBusy = true; paintControls();
+  try {
+    await fetch("/api/receptionist/" + action, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(action === "start" ? {mode: recepMode} : {}),
+    });
+  } catch (e) { /* report through the next poll */ }
+  ctlBusy = false;
+  await pollState();
+}
+setInterval(pollState, 2000); pollState();
+
+/* visitor's words via the shared event stream (fresh events only) */
+let es = null, heardT = 0;
+function connectEvents() {
+  es?.close();
+  es = new EventSource("/api/events");
+  es.onmessage = e => {
+    const ev = JSON.parse(e.data);
+    if (Date.now() / 1000 - skew - ev.ts > 10) return;   // replayed tail
+    if (ev.kind === "heard" && ev.text && ev.source !== "web-chat") {
+      $("heard").textContent = "“" + ev.text + "”";
+      $("heard").classList.add("show");
+      heardT = Date.now() + 6000;
+    }
+    if (ev.kind === "conversation_end") {
+      $("say").classList.remove("show");
+      $("heard").classList.remove("show");
+    }
+  };
+}
+connectEvents();
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) { es?.close(); es = null; }
+  else connectEvents();
+});
+
+/* ---------------- animation loop ---------------- */
+function speakingNow() {
+  if (!speak || !speak.active || !speak.duration) return null;
+  const t = Date.now() / 1000 - skew - speak.ts;
+  if (t < -0.3 || t > speak.duration + 0.35) return null;
+  return Math.max(0, t);
+}
+function visemeAt(t) {
+  const tl = speak.timeline || [];
+  let v = "rest";
+  for (const [start, shape] of tl) {
+    if (start > t) break;
+    v = shape;
+  }
+  return v;
+}
+function frame() {
+  const now = Date.now();
+  const t = speakingNow();
+
+  if (t !== null) {                                    // -------- speaking
+    mood = "speaking";
+    const env = speak.env || [];
+    const i = Math.min(env.length - 1, Math.floor(t * (speak.fps || 25)));
+    const open = env.length ? env[i] : 0.6;
+    renderMouth(visemeAt(t), open);
+    $("say").textContent = speak.text || "";
+    $("say").classList.add("show");
+    setBrows(false);
+    $("ring").setAttribute("opacity", 0);
+    // tiny head bob with the voice (on #stage — #face's transform is
+    // owned by the .float CSS animation and would swallow this)
+    $("stage").style.transform = `translateY(${-open * 4}px)`;
+  } else if (micFresh) {                               // -------- listening
+    mood = "listening";
+    renderMouth("rest", 0);
+    setBrows(true);
+    const r = 186 + Math.min(18, micLevel * 260);
+    $("ring").setAttribute("r", r);
+    $("ring").setAttribute("opacity", micActive ? 0.55 : 0.22);
+    $("stage").style.transform = "";
+    if (speak && !speak.active) $("say").classList.remove("show");
+  } else {                                             // -------- idle
+    mood = recepRunning ? "idle" : "paused";
+    renderMouth("rest", 0);
+    setBrows(false);
+    $("ring").setAttribute("opacity", 0);
+    $("stage").style.transform = "";
+    if (speak && !speak.active) $("say").classList.remove("show");
+  }
+
+  if (now > heardT) $("heard").classList.remove("show");
+  maybeBlink(now);
+  $("antenna").setAttribute("fill",
+    mood === "speaking" ? "#4ade80" : mood === "listening" ? "#f87171" :
+    mood === "paused" ? "#64748b" : "#ffd166");
+  const st = $("status");
+  st.className = mood === "idle" ? "" : mood;
+  $("status-text").textContent =
+    mood === "speaking" ? "speaking" :
+    mood === "listening" ? (micActive ? "listening — I hear you" : "listening…") :
+    mood === "paused" ? "stopped — press Resume" :
+    "waiting for a visitor";
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

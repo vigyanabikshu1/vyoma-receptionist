@@ -1,0 +1,132 @@
+# Vyoma Receptionist Robot configuration
+
+# Who the receptionist works for. Fill by hand, or open the control
+# panel (python -m vyoma.gui) → Settings → "Detect from knowledge base"
+# to let the AI read the ingested documents/website and fill these in.
+organisation:
+  website: "www.bssgurukulam.com"
+  name: "B.S.S Gurukulam Higher Secondary School"
+  assistant_name: "Vyoma"
+  address: "Alathur, Alathur. PO; Palakkad Dt. Kerala - PIN 678541"
+  phone: ""
+  email: "bssgurukal@gmail.com"
+
+llm:
+  # Primary reasoning model (must support Ollama tool calling)
+  model: "qwen2.5:3b"
+  # Fallback if the primary model is not available
+  fallback_model: "llama3.2:3b"
+  host: "http://localhost:11434"
+  # Keep the model loaded in VRAM between turns (-1 = forever)
+  keep_alive: -1
+  options:
+    temperature: 0.4
+    num_ctx: 4096
+
+knowledge_base:
+  # Directory of markdown files with organisation FAQs / info
+  dir: "knowledge"
+  embedding_model: "nomic-embed-text"
+  top_k: 3
+  # Minimum cosine similarity for a chunk to be included as context
+  min_score: 0.35
+
+stt:
+  # faster-whisper | indic-whisper | vosk | deepgram | none (text input).
+  # Compare the engines with your own voice in the control panel → Speech
+  # test tab.
+  engine: "deepgram"
+  # Vosk model (Indian English) — kept inside the project so system
+  # cache cleaners can't delete it
+  vosk_model: "models/vosk-model-en-in-0.5"
+  # AI4Bharat IndicWhisper (Whisper fine-tuned on Indian languages).
+  # Runs through faster-whisper, so this must be a CTranslate2 model: a
+  # local directory or a CT2 HuggingFace repo id. Convert a checkpoint once
+  # with `ct2-transformers-converter --model <hf_repo> --output_dir
+  # models/indic-whisper --quantization int8`. Empty = engine unavailable.
+  indic_whisper_model: "models/indic-whisper"
+  # Whisper models are stored here for the same reason
+  whisper_download_root: "models/whisper"
+  # Multilingual "small" understands Indian-accented English (and mixed
+  # Hindi words) much better than the English-only base.en; use
+  # "base.en" if you need faster turns on a weak CPU.
+  model: "small"
+  language: "en"
+  # Vocabulary hint: put org-specific names in "hotwords" below —
+  # they are updated automatically when the identity is detected in
+  # the control panel.
+  initial_prompt: >-
+    Reception desk conversation in Indian English.
+  # Extra boost for the names most often misheard (keep the list short)
+  hotwords: "B.S.S Gurukulam Higher Secondary School"
+  # Decoding beam width: higher = a bit more accurate, a bit slower
+  beam_size: 5
+  device: "cpu"
+  compute_type: "int8"
+  sample_rate: 16000
+  # Microphone: substring of the input device name (e.g. "HD camera").
+  # Empty = system default input. Choose it in the control panel →
+  # Settings → Microphone. A kiosk robot should pin its own mic here so
+  # it never falls back to an unplugged headset jack.
+  input_device: ""
+  # Simple energy VAD: stop listening after this much trailing silence
+  silence_seconds: 1.2
+  max_utterance_seconds: 15
+  energy_threshold: 0.01
+  # High ambient-noise mode: track the room's noise floor instead of a
+  # fixed threshold. Turn on in the control panel → Settings when the
+  # reception area is noisy.
+  noise_adaptive: false
+  # Speech must rise this many times above the measured noise floor.
+  noise_margin: 3.0
+  # Seconds of fast noise-floor calibration at the start of each listen.
+  noise_calibration_seconds: 0.5
+  # Diagnostic capture: when on, every utterance is saved as a WAV and a row
+  # is appended to diagnostic_dir/diagnostics.tsv with the measured noise
+  # floor, VAD threshold, RMS envelope, whether the VAD started/timed-out,
+  # and the transcript. Use it on-site to prove whether a miss is the VAD
+  # (never started / captured noise) or the STT engine (clean audio, no text).
+  # Turn off for normal operation — it writes a file per utterance.
+  diagnostic: false
+  diagnostic_dir: "data/diagnostics"
+
+tts:
+  engine: "piper"  # piper | espeak | none (print only)
+  voice: "en_US-hfc_female-medium"
+  voices_dir: "voices"
+  # Playback command; audio is piped as a WAV file argument
+  play_command: "aplay -q"
+
+vision:
+  enabled: false  # presence detection & recognition trigger
+  camera_index: 0
+  # If the face_recognition package is installed, known visitors are
+  # matched against embeddings enrolled in the database.
+  recognition: true
+  match_tolerance: 0.55
+  # Seconds a face must be continuously present to trigger a greeting
+  presence_seconds: 1.0
+
+# Deepgram cloud speech (optional — needs internet; visitor audio is
+# sent to Deepgram). Leave api_key empty for a fully offline system.
+deepgram:
+  api_key: ""
+  stt_model: "nova-2"          # supports Indian English
+  language: "en-IN"
+  # Female voice. Deepgram has no Indian-accented voice yet; for an
+  # Indian accent use the offline piper voice hi_IN-priyamvada-medium.
+  tts_model: "aura-2-asteria-en"
+
+notifications:
+  # Optional webhook (e.g. ntfy.sh topic or internal endpoint).
+  # Leave empty to only record notifications in the database/log.
+  webhook_url: ""
+
+data:
+  db_path: "data/vyoma.db"
+  kb_cache: "data/kb_cache.json"
+
+conversation:
+  # End conversation after this many seconds without visitor speech
+  idle_timeout_seconds: 45
+  max_turns: 30

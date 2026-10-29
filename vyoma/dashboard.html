@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vyoma Control Panel</title>
+<style>
+  :root {
+    --accent:#1f4e79; --accent2:#2d7dd2; --ok:#1d7a3a; --bad:#b0413e;
+    --bg:#f2f5f9; --card:#fff; --line:#dde4ee; --muted:#64748b;
+    --dark:#12263f;
+  }
+  * { box-sizing:border-box; margin:0; }
+  body { font:14px/1.5 system-ui,"Segoe UI",sans-serif; background:var(--bg);
+         color:#1e293b; display:flex; min-height:100vh; }
+
+  /* sidebar */
+  nav { width:210px; background:var(--dark); color:#cbd5e1; padding:18px 0;
+        flex-shrink:0; display:flex; flex-direction:column; }
+  nav .brand { color:#fff; font-size:19px; font-weight:700; padding:0 20px 4px; }
+  nav .brand span { color:#ffd166; }
+  nav .sub { font-size:11px; padding:0 20px 16px; color:#94a3b8; }
+  nav button { all:unset; display:flex; gap:10px; padding:11px 20px;
+               cursor:pointer; font-size:14px; }
+  nav button:hover { background:#1b3a5c; color:#fff; }
+  nav button.active { background:var(--accent2); color:#fff; font-weight:600; }
+  nav .foot { margin-top:auto; padding:14px 20px; font-size:11px; color:#7d93ad; }
+
+  main { flex:1; padding:22px 26px; max-width:1200px; }
+  h1 { font-size:20px; color:var(--accent); margin-bottom:14px; }
+  h2 { font-size:15px; color:var(--accent); margin:18px 0 8px; }
+  section.page { display:none; }
+  section.page.visible { display:block; }
+
+  .cards { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px; }
+  .card { background:var(--card); border:1px solid var(--line);
+          border-radius:10px; padding:12px 18px; min-width:130px; }
+  .card .num { font-size:22px; font-weight:700; color:var(--accent); }
+  .card .lbl { font-size:11px; color:var(--muted); text-transform:uppercase; }
+  .dot { display:inline-block; width:10px; height:10px; border-radius:50%;
+         margin-right:6px; }
+  .on { background:#22c55e; } .off { background:#ef4444; }
+
+  .btn { background:var(--accent2); color:#fff; border:0; border-radius:8px;
+         padding:9px 16px; font:inherit; font-weight:600; cursor:pointer; }
+  .btn:hover { filter:brightness(1.08); }
+  .btn.green { background:var(--ok); } .btn.red { background:var(--bad); }
+  .btn.ghost { background:#e5ecf5; color:var(--accent); }
+  .btn:disabled { opacity:.5; cursor:default; }
+  .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+
+  .panel { background:var(--card); border:1px solid var(--line);
+           border-radius:10px; padding:14px 16px; margin-bottom:14px; }
+
+  /* live microphone graph (shown only while the receptionist is listening) */
+  #mic-panel { border-color:#e6b3b0; background:#fdf3f2; }
+  #mic-panel .mic-head { font-weight:600; color:var(--bad); font-size:13px;
+           display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+  #mic-panel .mic-live { width:10px; height:10px; border-radius:50%;
+           background:var(--bad); animation:micpulse 1s ease-in-out infinite; }
+  @keyframes micpulse { 0%,100%{opacity:1} 50%{opacity:.25} }
+  #mic-canvas { width:100%; height:84px; display:block; }
+
+  /* activity feed */
+  #feed { height:420px; overflow-y:auto; background:#0f1c2e; color:#d7e3f4;
+          border-radius:10px; padding:12px 14px; font:12.5px/1.55 ui-monospace,
+          Consolas,monospace; }
+  #feed .ev { margin-bottom:4px; white-space:pre-wrap; word-break:break-word; }
+  #feed .t { color:#5c7a9d; margin-right:8px; }
+  #feed .k-heard { color:#7dd3fc; } #feed .k-speak { color:#86efac; }
+  #feed .k-facts { color:#fcd34d; } #feed .k-tool { color:#f0a6ff; }
+  #feed .k-face, #feed .k-visitor_detected { color:#fda4af; }
+  #feed .k-gui { color:#ffd166; } #feed .k-log { color:#8fa8c4; }
+  #feed .k-listening { color:#67809c; }
+  #feed .k-conversation_start, #feed .k-conversation_end,
+  #feed .k-session_start, #feed .k-session_end { color:#c4b5fd; }
+
+  /* chat */
+  #chatlog { height:300px; overflow-y:auto; display:flex;
+             flex-direction:column; gap:8px; padding:4px 2px 10px; }
+  .bubble { max-width:75%; padding:8px 13px; border-radius:14px; }
+  .me { align-self:flex-end; background:var(--accent2); color:#fff;
+        border-bottom-right-radius:4px; }
+  .bot { align-self:flex-start; background:#e8eef7;
+         border-bottom-left-radius:4px;
+         display:flex; align-items:flex-end; gap:6px; }
+  .sys { align-self:center; color:var(--muted); font-size:12px; }
+  .playbtn { all:unset; cursor:pointer; flex-shrink:0; font-size:11px;
+             line-height:1; color:var(--accent); background:#fff;
+             border:1px solid var(--line); border-radius:99px;
+             width:22px; height:22px; text-align:center;
+             display:inline-flex; align-items:center; justify-content:center; }
+  .playbtn:hover { background:var(--accent); color:#fff; }
+  .playbtn:disabled { opacity:.5; cursor:default; }
+
+  input[type=text], input[type=url], input[type=number], select {
+    padding:8px 12px; border:1px solid var(--line); border-radius:8px;
+    font:inherit; background:#fff; }
+  input.grow { flex:1; min-width:180px; }
+  label.field { display:block; margin-bottom:10px; font-weight:600; }
+  label.field input, label.field select { display:block; margin-top:4px;
+    width:100%; max-width:420px; font-weight:400; }
+
+  table { border-collapse:collapse; width:100%; font-size:13px;
+          background:var(--card); }
+  th,td { text-align:left; padding:8px 12px; border-bottom:1px solid var(--line); }
+  th { background:#eef2f7; font-size:11px; text-transform:uppercase; }
+  .tablewrap { overflow-x:auto; border:1px solid var(--line); border-radius:10px; }
+  .del { color:var(--bad); cursor:pointer; font-weight:700; border:0;
+         background:none; font-size:15px; }
+  .pill { font-size:11px; border-radius:99px; padding:2px 9px;
+          background:#e5ecf5; color:var(--accent); }
+
+  .split { display:flex; gap:14px; align-items:stretch; flex-wrap:wrap;
+           margin-bottom:6px; }
+  .camcol { flex:1; min-width:300px; display:flex; flex-direction:column;
+            gap:8px; }
+  #camimg { width:100%; flex:1; min-height:220px; max-height:300px;
+            object-fit:contain; border-radius:10px;
+            border:1px solid var(--line); background:#000; }
+  .chatbox { flex:1.2; min-width:320px; display:flex; flex-direction:column;
+             background:var(--card); border:1px solid var(--line);
+             border-radius:10px; padding:10px; }
+  .chatbox #chatlog { flex:1; height:auto; min-height:220px; max-height:300px; }
+  .bubble.voice { outline:1px dashed #94a3b8; }
+  #feed { height:300px; }
+  .note { font-size:12.5px; color:var(--muted); margin-top:6px; }
+  #toast { position:fixed; bottom:18px; right:18px; background:var(--dark);
+           color:#fff; padding:10px 18px; border-radius:10px; display:none;
+           max-width:420px; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="brand"><span id="brandname">VYOMA</span> <span>●</span></div>
+  <div class="sub">control panel</div>
+  <button data-page="dashboard" class="active">📊 Dashboard</button>
+  <button onclick="window.open('/avatar','_blank')">🙂 Avatar face</button>
+  <button data-page="speech">🎙 Speech test</button>
+  <button data-page="knowledge">📚 Knowledge</button>
+  <button data-page="reports">📄 Reports</button>
+  <button data-page="settings">⚙️ Settings</button>
+  <div class="foot">offline · nothing leaves<br>this machine</div>
+</nav>
+
+<main>
+
+<!-- ============ DASHBOARD ============ -->
+<section class="page visible" id="page-dashboard">
+  <h1>Dashboard</h1>
+  <div class="cards">
+    <div class="card"><div class="num" id="c-recep"><span class="dot off"></span>stopped</div>
+      <div class="lbl">Receptionist</div></div>
+    <div class="card"><div class="num" id="c-ollama"><span class="dot off"></span>?</div>
+      <div class="lbl">AI engine (Ollama)</div></div>
+    <div class="card"><div class="num" id="c-visits">–</div><div class="lbl">Visits</div></div>
+    <div class="card"><div class="num" id="c-visitors">–</div><div class="lbl">Visitors</div></div>
+    <div class="card"><div class="num" id="c-kb">–</div><div class="lbl">Knowledge chunks</div></div>
+  </div>
+
+  <div class="panel">
+    <div class="row">
+      <b>Receptionist:</b>
+      <button class="btn green" onclick="startRecep('voice')">▶ Start (voice)</button>
+      <button class="btn green" onclick="startRecep('camera')">▶ Start (camera + voice)</button>
+      <button class="btn red" onclick="stopRecep()">■ Stop</button>
+      <button class="btn" id="force-listen" onclick="forceListen()"
+              title="Start a conversation now, without waiting for a face (camera mode)">🎙 Force listen</button>
+      <span id="busy" class="pill" style="display:none"></span>
+    </div>
+  </div>
+
+  <div class="panel" id="mic-panel" style="display:none">
+    <div class="mic-head"><span class="mic-live"></span>
+      🎙 Listening — live microphone <span id="mic-speaking"></span></div>
+    <canvas id="mic-canvas" height="84"></canvas>
+  </div>
+
+  <h2>Camera & test chat</h2>
+  <div class="split">
+    <div class="camcol">
+      <img id="camimg" alt="camera preview (stopped)"
+           onerror="if(camOn)setTimeout(()=>{this.src='/camera/stream?'+Date.now()},2000)">
+      <div class="row">
+        <button class="btn green" id="cam-start" onclick="camStart()">▶ Camera</button>
+        <button class="btn red" onclick="camStop()">■ Stop</button>
+        <span class="note" style="margin:0">green boxes = detected faces</span>
+      </div>
+    </div>
+    <div class="chatbox">
+      <div id="chatlog"><div class="sys">Conversation — voice turns appear
+        here too; type below to chat as a visitor.</div></div>
+      <div class="row">
+        <input type="text" id="chatin" class="grow"
+               placeholder="e.g. Who is the principal?"
+               onkeydown="if(event.key==='Enter')sendChat()">
+        <button class="btn" id="chatbtn" onclick="sendChat()">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <h2>Live activity log — what is going on inside</h2>
+  <div id="feed"></div>
+
+  <h2>Recent visits</h2>
+  <div class="tablewrap"><table id="visits"><thead></thead><tbody></tbody></table></div>
+</section>
+
+<!-- ============ SPEECH A/B ============ -->
+<section class="page" id="page-speech">
+  <h1>Speech test — Whisper vs Vosk (Indian English)</h1>
+  <div class="panel">
+    <div class="row">
+      <button class="btn green" id="recbtn" onclick="sttRecord()">🎙 Record & compare</button>
+      <span>or</span>
+      <input type="file" id="sttfile" accept=".wav">
+      <button class="btn ghost" onclick="sttUpload()">Compare a WAV file</button>
+    </div>
+    <p class="note">Press Record, then speak one sentence — include the names
+      that get misheard (e.g. “I want to meet the principal of BSS Gurukulam”).
+      Both engines hear the <b>same</b> recording. The receptionist must be
+      stopped so the microphone is free. Pick the winner in
+      Settings → Speech engine.</p>
+  </div>
+  <div class="tablewrap"><table id="sttresults">
+    <thead><tr><th>#</th><th>Source</th><th>Engine</th><th>Time</th>
+    <th style="white-space:normal">What it heard</th></tr></thead>
+    <tbody></tbody></table></div>
+</section>
+
+<!-- ============ KNOWLEDGE ============ -->
+<section class="page" id="page-knowledge">
+  <h1>Knowledge base</h1>
+
+  <div class="panel">
+    <h2 style="margin-top:0">Upload documents (.pdf .docx .txt .md)</h2>
+    <div class="row">
+      <input type="file" id="file" accept=".pdf,.docx,.txt,.md">
+      <button class="btn" onclick="upload()">⬆ Upload & learn</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2 style="margin-top:0">Learn from your website</h2>
+    <div class="row">
+      <input type="url" id="domain" class="grow"
+             placeholder="www.yourorganisation.com">
+      <label><input type="checkbox" id="single"> this page only</label>
+      <input type="number" id="maxpages" placeholder="max pages" min="0"
+             style="width:110px">
+      <button class="btn" onclick="ingestUrl()">🌐 Crawl & learn</button>
+      <button class="btn red" onclick="recrawl()">♻ Re-crawl (fresh)</button>
+    </div>
+    <p class="note">Crawls every page of the site (subdomains included) and
+      converts them to knowledge files. Leave “max pages” empty for no limit.
+      <b>Re-crawl</b> deletes all previously crawled pages first and fetches
+      the site again — uploaded documents and hand-written files are kept.</p>
+  </div>
+
+  <h2>Sources <span class="pill" id="kbcount"></span></h2>
+  <div class="tablewrap"><table id="kbfiles">
+    <thead><tr><th>File</th><th>Size</th><th>Type</th><th></th></tr></thead>
+    <tbody></tbody></table></div>
+</section>
+
+<!-- ============ REPORTS ============ -->
+<section class="page" id="page-reports">
+  <h1>Reports</h1>
+  <div class="panel">
+    <div class="row">
+      <button class="btn" onclick="genReport()">🧾 Generate visitors report</button>
+      <a class="btn ghost" id="rep-html" style="display:none" target="_blank">Open HTML report</a>
+      <a class="btn ghost" id="rep-xlsx" style="display:none">⬇ Download Excel</a>
+    </div>
+    <p class="note">The HTML report has search, date filters and its own
+      Export-to-Excel button — you can copy that single file anywhere.</p>
+  </div>
+</section>
+
+<!-- ============ SETTINGS ============ -->
+<section class="page" id="page-settings">
+  <h1>Settings</h1>
+  <div class="panel" style="max-width:560px">
+    <h2 style="margin-top:0">Identity — who does Vyoma work for?</h2>
+    <div class="row" style="margin-bottom:12px">
+      <button class="btn" id="detectbtn" onclick="detectIdentity()">
+        🔍 Detect from knowledge base</button>
+      <span class="note" style="margin-top:0">reads your ingested documents /
+        website and fills the fields below — review, correct, then save</span>
+    </div>
+    <label class="field">Organisation name
+      <input type="text" id="s-org"></label>
+    <label class="field">Receptionist name
+      <input type="text" id="s-assistant" placeholder="Vyoma"></label>
+    <label class="field">Address
+      <input type="text" id="s-address"></label>
+    <label class="field">Phone
+      <input type="text" id="s-phone"></label>
+    <label class="field">Email
+      <input type="text" id="s-email"></label>
+    <label class="field">Website domain (used by “Crawl & learn”)
+      <input type="text" id="s-website" placeholder="www.yourorganisation.com"></label>
+    <h2>Voice, AI & recognition</h2>
+    <label class="field">AI brain (LLM) — models installed in Ollama
+      <select id="s-llm"></select></label>
+    <label class="field">Voice engine (deepgram = cloud, needs internet)
+      <select id="s-ttseng"></select></label>
+    <label class="field">Voice (offline piper voices)
+      <select id="s-voice"></select></label>
+    <label class="field">Speech engine (compare them in the Speech test tab)
+      <select id="s-stt"></select></label>
+    <label class="field">Microphone (which input the receptionist listens on;
+      pick the robot's own mic, not an unplugged headset jack)
+      <select id="s-mic"></select></label>
+    <label class="field">Speech hotwords (names the microphone should expect;
+      used by the Whisper engine)
+      <input type="text" id="s-hotwords" placeholder="Company name, people, place"></label>
+    <label class="field"><input type="checkbox" id="s-noise">
+      High ambient-noise mode (track the room's noise floor so a noisy
+      reception area isn't heard as constant speech)</label>
+    <label class="field">Staff notification webhook (e.g. ntfy.sh topic URL)
+      <input type="text" id="s-webhook" placeholder="https://ntfy.sh/your-topic"></label>
+    <label class="field"><input type="checkbox" id="s-vision">
+      Camera on by default (greet when a face appears)</label>
+    <label class="field">Webcam (choose one if several are connected)
+      <select id="s-camera"></select></label>
+    <button class="btn green" onclick="saveSettings()">💾 Save settings</button>
+    <p class="note">Saved to config.yaml. A running receptionist must be
+      restarted to pick up changes.</p>
+  </div>
+</section>
+
+</main>
+<div id="toast"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+/* ---------- navigation ---------- */
+function showPage(name) {
+  const btn = document.querySelector(`nav button[data-page="${name}"]`);
+  if (!btn) return;
+  document.querySelectorAll("nav button").forEach(x => x.classList.remove("active"));
+  document.querySelectorAll("section.page").forEach(x => x.classList.remove("visible"));
+  btn.classList.add("active");
+  $("page-" + name).classList.add("visible");
+  location.hash = name;
+  if (name === "dashboard" && camOn) $("camimg").src = "/camera/stream?" + Date.now();
+}
+document.querySelectorAll("nav button").forEach(b =>
+  b.onclick = () => showPage(b.dataset.page));
+if (location.hash) showPage(location.hash.slice(1));
+
+function toast(msg, ms = 3500) {
+  const t = $("toast"); t.textContent = msg; t.style.display = "block";
+  clearTimeout(t._h); t._h = setTimeout(() => t.style.display = "none", ms);
+}
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+}
+async function post(path, body) {
+  return api(path, {method:"POST", headers:{"Content-Type":"application/json"},
+                    body: JSON.stringify(body || {})});
+}
+
+/* ---------- status ---------- */
+async function refreshStatus() {
+  try {
+    const s = await api("/api/status");
+    $("brandname").textContent = (s.assistant || "VYOMA").toUpperCase();
+    document.title = s.assistant + " Control Panel";
+    $("c-recep").innerHTML = s.receptionist.running
+      ? `<span class="dot on"></span>${s.receptionist.mode}`
+      : `<span class="dot off"></span>stopped`;
+    $("c-ollama").innerHTML = s.ollama
+      ? `<span class="dot on"></span>up` : `<span class="dot off"></span>down`;
+    $("c-visits").textContent = s.db.visits;
+    $("c-visitors").textContent = s.db.visitors;
+    $("c-kb").textContent = s.kb.chunks + " / " + s.kb.files + " files";
+    $("busy").style.display = s.busy ? "" : "none";
+    $("busy").textContent = s.busy ? "working: " + s.busy : "";
+  } catch (e) { /* server restarting */ }
+}
+setInterval(refreshStatus, 4000); refreshStatus();
+
+async function startRecep(mode) {
+  try { const r = await post("/api/receptionist/start", {mode});
+        toast("Receptionist: " + r.result); refreshStatus(); }
+  catch (e) { toast("Error: " + e.message); }
+}
+async function stopRecep() {
+  try { const r = await post("/api/receptionist/stop");
+        toast("Receptionist: " + r.result); refreshStatus(); }
+  catch (e) { toast("Error: " + e.message); }
+}
+async function forceListen() {
+  try { const r = await post("/api/receptionist/force-listen");
+        toast("Receptionist: " + r.result); }
+  catch (e) { toast("Error: " + e.message); }
+}
+
+/* ---------- live feed (SSE) ---------- */
+const KINDS = {
+  heard: t => "🎤 HEARD: " + t.text,
+  speak: t => "🔊 VYOMA: " + t.text,
+  facts: t => `📚 FACTS retrieved (${t.count})` +
+              (t.previews?.length ? ":\n   • " + t.previews.join("\n   • ") : ""),
+  tool:  t => `🛠 TOOL ${t.name}(${JSON.stringify(t.args)})`,
+  face:  t => t.present ? `👤 face appeared (${t.count})` : "👤 face left",
+  visitor_detected: t => "👋 visitor ready" + (t.name ? ": " + t.name : ""),
+  listening: () => "… listening",
+  conversation_start: t => "▶ conversation started" + (t.visitor ? " with " + t.visitor : ""),
+  conversation_end: () => "■ conversation ended",
+  session_start: t => "▶▶ receptionist session started (" + t.mode + ")",
+  session_end: () => "■■ receptionist session ended",
+  gui: t => "ℹ " + t.message,
+  log: t => t.line,
+};
+function addFeed(ev) {
+  const div = document.createElement("div");
+  div.className = "ev k-" + ev.kind;
+  const time = new Date(ev.ts * 1000).toLocaleTimeString();
+  const render = KINDS[ev.kind] || (t => ev.kind + " " + JSON.stringify(t));
+  div.innerHTML = `<span class="t">${time}</span>`;
+  div.append(render(ev));
+  // newest first: new events are inserted at the top
+  const feed = $("feed");
+  feed.prepend(div);
+  while (feed.children.length > 400) feed.removeChild(feed.lastChild);
+
+  // mirror the receptionist's voice conversation into the chat log
+  if ((ev.kind === "heard" || ev.kind === "speak")
+      && ev.source !== "web-chat" && ev.text) {
+    bubble(ev.kind === "heard" ? "me voice" : "bot voice",
+           (ev.kind === "heard" ? "🎤 " : "🔊 ") + ev.text);
+  }
+  if (ev.kind === "conversation_start" && ev.source !== "web-chat")
+    bubble("sys", "— voice conversation started —");
+}
+let es = null;
+let esWasDown = false;
+function connectEvents() {
+  es?.close();
+  es = new EventSource("/api/events");
+  es.onmessage = e => addFeed(JSON.parse(e.data));
+  es.onerror = () => { esWasDown = true; };   // browser auto-reconnects
+  es.onopen = () => {
+    if (esWasDown) {          // server came back — heal everything
+      esWasDown = false;
+      refreshStatus(); refreshVisits();
+      if (camOn) $("camimg").src = "/camera/stream?" + Date.now();
+    }
+  };
+}
+connectEvents();
+// Background tabs must release their connections (browsers allow only
+// ~6 per site — stale tabs otherwise starve the active one).
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    es?.close(); es = null;
+    if (camOn) $("camimg").src = "";
+  } else {
+    connectEvents();
+    if (camOn) $("camimg").src = "/camera/stream?" + Date.now();
+    refreshStatus(); refreshVisits();
+  }
+});
+
+/* ---------- visits table ---------- */
+async function refreshVisits() {
+  try {
+    const v = await api("/api/visits");
+    $("visits").querySelector("thead").innerHTML =
+      "<tr>" + v.columns.map(c => `<th>${c}</th>`).join("") + "</tr>";
+    $("visits").querySelector("tbody").innerHTML =
+      v.rows.map(r => "<tr>" + r.map(c => `<td>${esc(c)}</td>`).join("") + "</tr>").join("")
+      || `<tr><td colspan="${v.columns.length}">No visits yet.</td></tr>`;
+  } catch (e) {}
+}
+const esc = s => String(s).replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+setInterval(refreshVisits, 8000); refreshVisits();
+
+/* ---------- live microphone graph (shown only while listening) ---------- */
+const micCanvas = $("mic-canvas");
+const micCtx = micCanvas.getContext("2d");
+const MIC_PEAK_FLOOR = 0.03; // don't divide by near-silence (keeps it calm)
+const MIC_GAIN_MAX = 30;     // cap so faint noise isn't amplified into chaos
+function drawMic(wave, active) {
+  const c = micCanvas, ctx = micCtx;
+  const w = c.clientWidth, h = c.clientHeight;
+  if (c.width !== w) c.width = w;
+  if (c.height !== h) c.height = h;
+  ctx.clearRect(0, 0, w, h);
+  const mid = h / 2;
+  const color = active ? "#e74c3c" : "#c0392b";  // brighter red when speaking
+
+  // zero line
+  ctx.beginPath();
+  ctx.moveTo(0, mid);
+  ctx.lineTo(w, mid);
+  ctx.strokeStyle = color + "33";
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  const n = wave.length;
+  if (!n) return;
+  const step = n > 1 ? w / (n - 1) : w;
+  // Auto-gain: scale the window so its loudest sample nearly fills the
+  // height (speech peaks are small, ~0.05–0.3), bounded so near-silence
+  // isn't amplified into noise and loud bursts aren't badly clipped.
+  let peak = 0;
+  for (let i = 0; i < n; i++) peak = Math.max(peak, Math.abs(wave[i]));
+  const gain = Math.min(MIC_GAIN_MAX, 0.9 / Math.max(peak, MIC_PEAK_FLOOR));
+  const y = s => mid - Math.max(-1, Math.min(1, s * gain)) * (h / 2 - 2);
+
+  // signed oscilloscope trace: actual sample values above/below the midline
+  ctx.beginPath();
+  ctx.moveTo(0, y(wave[0]));
+  for (let i = 1; i < n; i++) ctx.lineTo(i * step, y(wave[i]));
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = color;
+  ctx.lineJoin = "round";
+  ctx.stroke();
+}
+async function pollMic() {
+  const panel = $("mic-panel");
+  try {
+    const d = await (await fetch("/api/mic")).json();
+    const fresh = (Date.now() / 1000 - (d.ts || 0)) < 1.2;
+    if (fresh && (d.wave || []).length) {
+      if (panel.style.display === "none") panel.style.display = "";
+      $("mic-speaking").textContent = d.active ? "· speaking" : "";
+      drawMic(d.wave, d.active);
+      return;
+    }
+  } catch (e) { /* server restarting */ }
+  if (panel.style.display !== "none") panel.style.display = "none";
+}
+setInterval(pollMic, 150);
+
+/* ---------- camera ---------- */
+let camOn = false;
+function camStart() { camOn = true; $("camimg").src = "/camera/stream?" + Date.now(); }
+function camStop()  { camOn = false; $("camimg").src = ""; }
+
+/* ---------- chat ---------- */
+function bubble(cls, text) {
+  const d = document.createElement("div");
+  d.className = "bubble " + cls;
+  if (/\bbot\b/.test(cls)) {          // Vyoma's replies get a replay button
+    const span = document.createElement("span");
+    span.textContent = text;
+    const btn = document.createElement("button");
+    btn.className = "playbtn"; btn.title = "Play this reply"; btn.textContent = "▶";
+    btn.onclick = () => playChat(btn, text);
+    d.append(span, btn);
+    d._playbtn = btn;
+  } else {
+    d.textContent = text;
+  }
+  $("chatlog").appendChild(d);
+  $("chatlog").scrollTop = $("chatlog").scrollHeight;
+  return d;
+}
+let chatAudio = null;
+async function playChat(btn, text) {
+  const say = text.replace(/^[🔊🎤\s]+/u, "").trim() || text;
+  const prev = btn.textContent; btn.disabled = true; btn.textContent = "…";
+  try {
+    const r = await fetch("/api/tts", {method:"POST",
+      headers:{"Content-Type":"application/json"}, body: JSON.stringify({text: say})});
+    if (!r.ok) { const j = await r.json().catch(() => ({}));
+                 throw new Error(j.error || ("HTTP " + r.status)); }
+    const url = URL.createObjectURL(await r.blob());
+    chatAudio?.pause();
+    chatAudio = new Audio(url);
+    chatAudio.onended = chatAudio.onerror = () => URL.revokeObjectURL(url);
+    await chatAudio.play();
+  } catch (e) { toast("Playback failed: " + e.message, 5000); }
+  finally { btn.disabled = false; btn.textContent = prev; }
+}
+async function sendChat() {
+  const inp = $("chatin"); const text = inp.value.trim();
+  if (!text) return;
+  inp.value = ""; bubble("me", text);
+  $("chatbtn").disabled = true;
+  try { const r = await post("/api/chat", {text});
+        const d = bubble("bot", r.reply || "…");
+        if (d._playbtn) playChat(d._playbtn, r.reply || "…");   // speak the reply at once
+        if (r.ended) bubble("sys", "— conversation ended; your next message starts a new visit —"); }
+  catch (e) { bubble("sys", "Error: " + e.message); }
+  finally { $("chatbtn").disabled = false; inp.focus(); }
+}
+
+/* ---------- speech A/B ---------- */
+let sttRound = 0;
+function sttShow(r) {
+  sttRound++;
+  const tb = $("sttresults").querySelector("tbody");
+  r.results.forEach((x, i) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML =
+      `<td>${i === 0 ? sttRound : ""}</td>` +
+      `<td>${i === 0 ? esc(r.source) + " · " + r.duration + "s" : ""}</td>` +
+      `<td>${esc(x.engine)}</td>` +
+      `<td>${x.seconds != null ? x.seconds + "s" : "—"}</td>` +
+      `<td style="white-space:normal">${x.error
+        ? '<span style="color:var(--bad)">' + esc(x.error) + "</span>"
+        : "<b>" + esc(x.text) + "</b>"}</td>`;
+    tb.prepend(tr);
+  });
+}
+async function sttRecord() {
+  const b = $("recbtn"); b.disabled = true;
+  b.textContent = "🎙 Speak now… (listening)";
+  try { sttShow(await post("/api/stt_ab")); }
+  catch (e) { toast("Error: " + e.message, 6000); }
+  finally { b.disabled = false; b.textContent = "🎙 Record & compare"; }
+}
+async function sttUpload() {
+  const f = $("sttfile").files[0];
+  if (!f) return toast("Choose a .wav file first");
+  const fd = new FormData(); fd.append("file", f);
+  try {
+    const r = await fetch("/api/stt_ab", {method:"POST", body:fd});
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error);
+    sttShow(j);
+  } catch (e) { toast("Error: " + e.message, 6000); }
+}
+
+/* ---------- knowledge ---------- */
+async function refreshKb() {
+  try {
+    const k = await api("/api/knowledge");
+    $("kbcount").textContent = k.files.length + " files";
+    $("kbfiles").querySelector("tbody").innerHTML = k.files.map(f => `
+      <tr><td>${esc(f.name)}</td><td>${(f.size/1024).toFixed(1)} KB</td>
+      <td>${f.ingested ? (f.name.startsWith("web-") ? "website" : "document") : "hand-written"}</td>
+      <td><button class="del" title="delete" onclick="delKb('${esc(f.name)}')">✕</button></td></tr>`
+    ).join("");
+  } catch (e) {}
+}
+async function delKb(name) {
+  if (!confirm("Remove " + name + " from the knowledge base?")) return;
+  try { await api("/api/knowledge/" + encodeURIComponent(name), {method:"DELETE"});
+        toast("Removed " + name); refreshKb(); }
+  catch (e) { toast("Error: " + e.message); }
+}
+async function upload() {
+  const f = $("file").files[0];
+  if (!f) return toast("Choose a file first");
+  const fd = new FormData(); fd.append("file", f);
+  try {
+    const r = await fetch("/api/knowledge/upload", {method:"POST", body:fd});
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.error);
+    toast("Learning " + f.name + " — watch the Dashboard feed");
+    setTimeout(refreshKb, 3000);
+  } catch (e) { toast("Error: " + e.message); }
+}
+async function recrawl() {
+  const url = $("domain").value.trim();
+  if (!confirm("Delete ALL previously crawled pages and re-crawl "
+               + (url || "the configured website") + "?\n"
+               + "Uploaded documents and hand-written files are kept.")) return;
+  try {
+    const r = await post("/api/knowledge/recrawl", {url});
+    toast("Re-crawling " + r.url + " — watch the Dashboard feed");
+  } catch (e) { toast("Error: " + e.message, 6000); }
+}
+async function ingestUrl() {
+  const url = $("domain").value.trim() || $("s-website")?.value?.trim();
+  if (!url) return toast("Enter your website domain");
+  try {
+    await post("/api/knowledge/ingest_url",
+      {url, single: $("single").checked,
+       max_pages: parseInt($("maxpages").value) || 0});
+    toast("Crawling " + url + " — watch the Dashboard feed");
+  } catch (e) { toast("Error: " + e.message); }
+}
+setInterval(refreshKb, 10000); refreshKb();
+
+/* ---------- reports ---------- */
+async function genReport() {
+  try {
+    const r = await post("/api/report");
+    $("rep-html").href = r.html; $("rep-html").style.display = "";
+    $("rep-xlsx").href = r.xlsx; $("rep-xlsx").style.display = "";
+    $("rep-xlsx").download = "visitors_report.xlsx";
+    toast(`Report ready (${r.visits} visits)`);
+  } catch (e) { toast("Error: " + e.message); }
+}
+
+/* ---------- settings ---------- */
+async function loadSettings() {
+  try {
+    const s = await api("/api/settings");
+    $("s-org").value = s.org_name;
+    $("s-assistant").value = s.assistant_name;
+    $("s-website").value = s.website;
+    $("s-address").value = s.address;
+    $("s-phone").value = s.phone;
+    $("s-email").value = s.email;
+    $("s-hotwords").value = s.hotwords;
+    $("s-noise").checked = s.noise_adaptive;
+    $("s-webhook").value = s.webhook_url;
+    $("s-vision").checked = s.vision_enabled;
+    $("s-camera").innerHTML = s.cameras.map(c =>
+      `<option value="${c.index}" ${c.index === s.camera_index
+                 ? "selected" : ""}>${c.name}</option>`).join("");
+    $("s-voice").innerHTML = s.voices.map(v =>
+      `<option ${v === s.voice ? "selected" : ""}>${v}</option>`).join("");
+    $("s-llm").innerHTML = s.llm_models.map(m =>
+      `<option ${m === s.llm_model || m === s.llm_model + ":latest"
+                 ? "selected" : ""}>${m}</option>`).join("");
+    $("s-stt").innerHTML = s.stt_engines.map(e =>
+      `<option ${e === s.stt_engine ? "selected" : ""}>${e}</option>`).join("");
+    $("s-mic").innerHTML = `<option value="">System default</option>` +
+      (s.input_devices || []).map(d =>
+        // tolerant match: the stored value may be a substring (e.g. "HD camera")
+        `<option ${s.input_device && d.name.includes(s.input_device)
+                   ? "selected" : ""}>${esc(d.name)}</option>`).join("");
+    $("s-ttseng").innerHTML = s.tts_engines.map(e =>
+      `<option ${e === s.tts_engine ? "selected" : ""}>${e}</option>`).join("");
+    if (!$("domain").value && s.website) $("domain").value = s.website;
+  } catch (e) {}
+}
+async function saveSettings() {
+  try {
+    await post("/api/settings", {
+      org_name: $("s-org").value, assistant_name: $("s-assistant").value,
+      website: $("s-website").value, address: $("s-address").value,
+      phone: $("s-phone").value, email: $("s-email").value,
+      hotwords: $("s-hotwords").value, noise_adaptive: $("s-noise").checked,
+      input_device: $("s-mic").value,
+      voice: $("s-voice").value,
+      llm_model: $("s-llm").value, stt_engine: $("s-stt").value,
+      tts_engine: $("s-ttseng").value,
+      webhook_url: $("s-webhook").value, vision_enabled: $("s-vision").checked,
+      camera_index: Number($("s-camera").value),
+    });
+    toast("Settings saved ✓"); refreshStatus();
+  } catch (e) { toast("Error: " + e.message); }
+}
+async function detectIdentity() {
+  const b = $("detectbtn"); b.disabled = true; b.textContent = "🔍 Reading knowledge base…";
+  try {
+    const r = await post("/api/identity/detect");
+    if (r.org_name) $("s-org").value = r.org_name;
+    if (r.address)  $("s-address").value = r.address;
+    if (r.phone)    $("s-phone").value = r.phone;
+    if (r.email)    $("s-email").value = r.email;
+    if (r.website)  $("s-website").value = r.website;
+    if (r.hotwords) $("s-hotwords").value = r.hotwords;
+    toast(r.org_name ? `Detected: ${r.org_name} — review and Save`
+                     : "Could not find identity details in the knowledge base");
+  } catch (e) { toast("Error: " + e.message); }
+  finally { b.disabled = false; b.textContent = "🔍 Detect from knowledge base"; }
+}
+loadSettings();
+</script>
+</body>
+</html>

@@ -1,0 +1,25 @@
+# Core (agent + knowledge base + data store)
+ollama
+pyyaml
+requests
+numpy
+
+# Knowledge ingestion (documents + company website)
+pypdf
+beautifulsoup4
+trafilatura            # high-quality main-content extraction for crawls
+
+# Speech
+faster-whisper
+sounddevice
+piper-tts
+vosk                     # alternative STT engine (Indian-English models)
+
+# Vision (presence detection) — OpenCV 5 removed CascadeClassifier
+opencv-python<5
+
+# Control panel (local web GUI)
+flask
+
+# Optional — face recognition by name (needs cmake + build tools):
+# face_recognition

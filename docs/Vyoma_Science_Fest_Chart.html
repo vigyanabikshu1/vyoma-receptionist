@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Vyoma — Science Fest Chart</title>
+<style>
+  @page { size: A3 landscape; margin: 8mm; }
+  * { box-sizing: border-box; margin: 0; padding: 0;
+      -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body { font-family: "Segoe UI", system-ui, sans-serif; background: #eef3f9;
+         color: #16324f; }
+  .poster { width: 404mm; height: 281mm; margin: 10px auto; background: #fff;
+            display: flex; flex-direction: column; padding: 7mm 9mm;
+            box-shadow: 0 4px 24px rgba(0,0,0,.15); }
+  @media print { body { background: #fff; } .poster { box-shadow: none; margin: 0; } }
+
+  /* header */
+  header { display: flex; align-items: center; gap: 8mm;
+           background: linear-gradient(90deg, #123c69, #1f6fb2);
+           color: #fff; border-radius: 6mm; padding: 6mm 10mm; }
+  .robot { font-size: 60pt; line-height: 1; }
+  header h1 { font-size: 40pt; letter-spacing: 1px; }
+  header h1 span { color: #ffd166; }
+  header .tag { font-size: 15.5pt; margin-top: 2mm; opacity: .95; }
+  .badges { margin-left: auto; text-align: right; display: flex;
+            flex-direction: column; gap: 2.5mm; }
+  .badge { background: #ffd166; color: #16324f; font-weight: 700;
+           font-size: 13pt; border-radius: 99px; padding: 2mm 6mm;
+           white-space: nowrap; }
+
+  /* pipeline */
+  .pipeline { display: flex; align-items: stretch; gap: 0; margin: 6mm 0 4mm; }
+  .step { flex: 1; background: #f2f7fd; border: 1.2mm solid #1f6fb2;
+          border-radius: 5mm; padding: 4mm 3mm; text-align: center;
+          display: flex; flex-direction: column; justify-content: flex-start; }
+  .step .ico { font-size: 26pt; }
+  .step h3 { font-size: 14.5pt; margin: 1.5mm 0 1mm; color: #123c69; }
+  .step p { font-size: 10.5pt; line-height: 1.35; }
+  .step .tech { margin-top: auto; padding-top: 2mm; font-size: 10pt;
+                font-weight: 700; color: #b3541e; }
+  .arrow { align-self: center; font-size: 24pt; color: #1f6fb2;
+           font-weight: 800; padding: 0 1.5mm; }
+  .step.brain { background: #fff6e5; border-color: #e09f3e; }
+
+  /* middle band: facts + tools */
+  .band { display: flex; gap: 5mm; margin-bottom: 4mm; }
+  .panel { border-radius: 5mm; padding: 4mm 5mm; }
+  .panel h2 { font-size: 15pt; margin-bottom: 2.5mm; }
+  .panel li { font-size: 11pt; line-height: 1.45; margin-left: 5mm; }
+  .kb    { flex: 1.15; background: #e8f6ee; border: .8mm solid #2e7d4f; }
+  .tools { flex: 1;    background: #fdeeee; border: .8mm solid #b0413e; }
+  .why   { flex: 1.25; background: #eef; border: .8mm solid #4650a0; }
+
+  /* bottom band */
+  .bottom { display: flex; gap: 5mm; flex: 1; }
+  .card { flex: 1; border-radius: 5mm; padding: 4mm 5mm; background: #f7f9fc;
+          border: .8mm solid #93a8c2; }
+  .card h2 { font-size: 14.5pt; color: #123c69; margin-bottom: 2.5mm; }
+  .card li { font-size: 10.8pt; line-height: 1.45; margin-left: 5mm; }
+  table { border-collapse: collapse; width: 100%; font-size: 10.5pt; }
+  td { padding: 1.2mm 2mm; border-bottom: .3mm solid #c9d6e5; }
+  td:first-child { font-weight: 700; white-space: nowrap; }
+
+  footer { text-align: center; font-size: 11pt; color: #4a6076;
+           padding-top: 3mm; }
+  footer b { color: #123c69; }
+</style>
+</head>
+<body>
+<div class="poster">
+
+  <header>
+    <div class="robot">🤖</div>
+    <div>
+      <h1>VYOMA <span>— The Offline AI Receptionist</span></h1>
+      <div class="tag">She sees you, listens to you, answers from our school's own knowledge,
+        and informs the staff — with <b>no internet at all</b>.</div>
+    </div>
+    <div class="badges">
+      <div class="badge">💯 100% OFFLINE</div>
+      <div class="badge">🔒 DATA STAYS HERE</div>
+      <div class="badge">💸 ₹0 RUNNING COST</div>
+    </div>
+  </header>
+
+  <section class="pipeline">
+    <div class="step">
+      <div class="ico">📷</div>
+      <h3>1. SEES</h3>
+      <p>Camera detects a face — Vyoma greets the visitor</p>
+      <div class="tech">OpenCV</div>
+    </div>
+    <div class="arrow">➜</div>
+    <div class="step">
+      <div class="ico">🎤</div>
+      <h3>2. LISTENS</h3>
+      <p>Records speech until you pause, converts it to text</p>
+      <div class="tech">Whisper (STT)</div>
+    </div>
+    <div class="arrow">➜</div>
+    <div class="step brain">
+      <div class="ico">🧠</div>
+      <h3>3. THINKS</h3>
+      <p>A small AI brain reads your question <b>+ FACTS</b> retrieved from our knowledge base</p>
+      <div class="tech">Qwen 2.5 LLM + RAG</div>
+    </div>
+    <div class="arrow">➜</div>
+    <div class="step">
+      <div class="ico">🔊</div>
+      <h3>4. SPEAKS</h3>
+      <p>The reply is turned into a natural voice</p>
+      <div class="tech">Piper (TTS)</div>
+    </div>
+    <div class="arrow">➜</div>
+    <div class="step">
+      <div class="ico">📝</div>
+      <h3>5. ACTS</h3>
+      <p>Logs the visit &amp; notifies the staff member on their phone</p>
+      <div class="tech">SQLite + tools</div>
+    </div>
+  </section>
+
+  <section class="band">
+    <div class="panel kb">
+      <h2>📚 Open-Book Exam (RAG)</h2>
+      <li>Our website &amp; documents become its "textbook"</li>
+      <li>Each question fetches the 3 most relevant facts</li>
+      <li>Vyoma answers <b>only</b> from those facts — no making things up!</li>
+    </div>
+    <div class="panel tools">
+      <h2>🛠️ Agentic = Takes Action</h2>
+      <li>Registers the visitor's name &amp; company</li>
+      <li>Logs every visit with purpose &amp; time</li>
+      <li>Sends "your guest is waiting" alerts to staff</li>
+    </div>
+    <div class="panel why">
+      <h2>🌏 Why Offline Matters</h2>
+      <li><b>Privacy:</b> voices &amp; faces never leave this laptop</li>
+      <li><b>Cost:</b> no subscriptions, no cloud API fees</li>
+      <li><b>Reliability:</b> works even where internet doesn't</li>
+    </div>
+  </section>
+
+  <section class="bottom">
+    <div class="card">
+      <h2>⚙️ Built With</h2>
+      <table>
+        <tr><td>Ears</td><td>faster-whisper "small" (CPU)</td></tr>
+        <tr><td>Brain</td><td>Qwen 2.5 · 3B · 4-bit · Ollama (GPU)</td></tr>
+        <tr><td>Memory</td><td>nomic-embed-text + cosine similarity</td></tr>
+        <tr><td>Voice</td><td>Piper (English + Hindi voices)</td></tr>
+        <tr><td>Eyes</td><td>OpenCV Haar cascade</td></tr>
+        <tr><td>Diary</td><td>SQLite database</td></tr>
+        <tr><td>Code</td><td>Python · runs on a 4 GB GPU laptop</td></tr>
+      </table>
+    </div>
+    <div class="card">
+      <h2>🏫 Where It Can Work</h2>
+      <li>School &amp; college receptions</li>
+      <li>Hospital enquiry desks</li>
+      <li>Government help counters</li>
+      <li>Libraries &amp; museums</li>
+      <li>Small offices — after hours too!</li>
+      <h2 style="margin-top:3mm">🤝 Helper, not a replacement</h2>
+      <li>Handles repeated questions, like an ATM handles routine cash — humans handle the rest</li>
+    </div>
+    <div class="card">
+      <h2>🚀 What's Next</h2>
+      <li>Animated face with lip-sync on screen</li>
+      <li>Full Malayalam &amp; Hindi conversation</li>
+      <li>Faster replies, directional microphone</li>
+      <h2 style="margin-top:3mm">🧪 Try It!</h2>
+      <li>Ask: "Tell me about our school's achievements"</li>
+      <li>Ask: "I'm here to meet the Principal"</li>
+      <li>Watch us switch the Wi-Fi OFF — it still works!</li>
+    </div>
+  </section>
+
+  <footer>
+    <b>VYOMA</b> · named after the Sanskrit word for "sky" · inspired by ISRO's Vyommitra ·
+    built with free &amp; open-source software · Class 8 Science Fest Project
+  </footer>
+
+</div>
+</body>
+</html>

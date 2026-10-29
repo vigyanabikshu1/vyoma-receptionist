@@ -1,0 +1,32 @@
+# Headless robot service: on powerup, bring up BOTH the control-panel UI
+# and the receptionist. The panel launches the receptionist in camera
+# mode (--start camera), so the robot detects faces and starts talking
+# immediately, while the dashboard stays reachable on the network for
+# monitoring, reports and settings.
+#
+# One process owns the receptionist child, so the dashboard's status,
+# Start/Stop button and live camera preview all track it correctly — this
+# is why we run a single combined service rather than two competing ones.
+#
+# This is a *user* service on purpose: the microphone (sounddevice /
+# PortAudio) and speaker (aplay) reach the audio hardware through the
+# user's PipeWire session, which a system-wide service cannot see. See
+# INSTALL.md section 11 for the one-time install commands.
+
+[Unit]
+Description=Vyoma robot (dashboard + receptionist: face detection + conversation)
+# Ollama serves the LLM; wait for the network and sound to be up.
+After=network-online.target sound.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/esp6/receptionist/vyoma
+# --host 0.0.0.0 so the dashboard opens from another device on the LAN;
+# --start camera launches the receptionist as soon as the panel is up.
+ExecStart=%h/esp6/receptionist/vyoma/.venv/bin/python -m vyoma.gui --host 0.0.0.0 --start camera
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target
